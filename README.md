@@ -1,1 +1,2 @@
 # QNV 2030 HPC Architecture 
+[![HPC Diagnostic Pipeline](https://github.com/Mkfininqatar/python-logger2/actions/workflows/hpc_diag.yml/badge.svg)](https://github.com/Mkfininqatar/python-logger2/actions/workflows/hpc_diag.yml)
