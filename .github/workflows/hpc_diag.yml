@@ -1,1 +1,4 @@
-hpc_diag.yml
+- name: Run Pytest Suite
+        run: |
+          pip install pytest
+          pytest
