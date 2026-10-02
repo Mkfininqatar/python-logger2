@@ -1,100 +1,51 @@
-import os
-import sys
-import logging
-import requests
-from flask import Flask, jsonify, request
+import streamlit as st
+import datetime
 
-# Force Python to scan the exact root directory seamlessly
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
+# Page Configuration
+st.set_page_config(page_title="Personal Dashboard", page_icon="⚡", layout="wide")
 
-# =====================================================================
-# DYNAMIC ENGINE LOADER (Handles both medical_topology and hpc_telemetry)
-# =====================================================================
-topology_engine = None
+st.title("⚡ Smart Personal Dashboard")
+st.write("Apnar daily task, notes ebong aabahoya ek sthane control korar jonno chotto ekti dashboard.")
 
-# Attempt 1: Check if the Engine class exists directly inside 'medical_topology'
-if not topology_engine:
-    try:
-        from medical_topology import CardioNeuralTopologyEngine
-        topology_engine = CardioNeuralTopologyEngine()
-        logging.info("[SUCCESS] Loaded CardioNeuralTopologyEngine from medical_topology.py")
-    except (ModuleNotFoundError, ImportError):
-        pass
+# Sidebar - Quick Info
+st.sidebar.header("📅 Date & Time")
+current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+st.sidebar.write(f"Current Time: {current_time}")
 
-# Attempt 2: Fallback to checking the exact same class name inside 'hpc_telemetry'
-if not topology_engine:
-    try:
-        from hpc_telemetry import CardioNeuralTopologyEngine
-        topology_engine = CardioNeuralTopologyEngine()
-        logging.info("[SUCCESS] Loaded CardioNeuralTopologyEngine from hpc_telemetry.py")
-    except (ModuleNotFoundError, ImportError):
-        pass
+st.sidebar.markdown("---")
+st.sidebar.header("🌤️ Weather Widget")
+city = st.sidebar.selectbox("Select City", ["Doha", "Dhaka", "London", "New York"])
+if city == "Doha":
+    st.sidebar.info("Doha: 35°C, Sunny & Clear")
+elif city == "Dhaka":
+    st.sidebar.info("Dhaka: 29°C, Humid & Rainy")
+else:
+    st.sidebar.info(f"{city}: 22°C, Pleasant")
 
-# Attempt 3: Emergency Fallback - If the class is missing or named differently inside hpc_telemetry
-if not topology_engine:
-    try:
-        import hpc_telemetry
-        # Inspecting if any custom runner method exists inside hpc_telemetry
-        if hasattr(hpc_telemetry, 'CardioNeuralTopologyEngine'):
-            topology_engine = hpc_telemetry.CardioNeuralTopologyEngine()
-        else:
-            # Dynamically creating a clean local instance to bypass the missing file crash
-            class DynamicBypassEngine:
-                def __init__(self):
-                    self.num_faces = 1880000
-                    self.num_vertices = 992000
-                def run_telemetry_pipeline(self, signals):
-                    import numpy as np
-                    return np.zeros((self.num_vertices, 3), dtype=np.float32)
-            topology_engine = DynamicBypassEngine()
-            logging.warning("[WARNING] Core class missing. Running on Dynamic Bypass Engine to prevent crashes.")
-    except Exception as fallback_err:
-        print(f"\n[CRITICAL ERROR] Could not initialize any processing core engine.")
-        raise fallback_err
+# Main Content - Two Columns
+col1, col2 = st.columns(2)
 
-# Initialize Flask Server
-app = Flask(__name__)
-logging.basicConfig(level=logging.INFO)
-
-def get_country_from_ip(ip_address):
-    """
-    Fetches the country name from an incoming IP address using a free geolocation API.
-    Handles local development networks safely.
-    """
-    if ip_address in ['127.0.0.1', 'localhost'] or ip_address.startswith('192.168.'):
-        return "Local Network"
-    try:
-        res = requests.get(f"http://ip-api.com{ip_address}", timeout=2).json()
-        if res.get('status') == 'success':
-            return res.get('country', 'Unknown')
-    except:
-        pass
-    return "Unknown Location"
-
-@app.route('/api/telemetry/stream', methods=['POST'])
-def stream_telemetry():
-    """
-    Endpoint for streaming real-time Middle Antenna data with client location logging.
-    """
-    try:
-        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-        country = get_country_from_ip(client_ip)
-        logging.info(f"[TRAFFIC] Incoming connection from Country: {country}")
+with col1:
+    st.subheader("📝 Daily Task List")
+    if 'tasks' not in st.session_state:
+        st.session_state.tasks = ["Code review kora", "GitHub repository update kora"]
         
-        data = request.get_json()
-        if not data or 'signals' not in data:
-            return jsonify({"status": "error", "message": "Missing 'signals' data"}), 400
+    new_task = st.text_input("Notun task jog korun:")
+    if st.button("Add Task"):
+        if new_task:
+            st.session_state.tasks.append(new_task)
+            st.success("Task add kora hoyeche!")
             
-        buf = topology_engine.run_telemetry_pipeline(data['signals'])
-        return jsonify({
-            "status": "success", 
-            "detected_origin": country, 
-            "buffer_shape": buf.shape
-        }), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+    st.write("**Apnar Current Tasks:**")
+    for index, task in enumerate(st.session_state.tasks):
+        st.write(f"{index + 1}. {task}")
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+with col2:
+    st.subheader("📓 Quick Notes / Thoughts")
+    if 'notes' not in st.session_state:
+        st.session_state.notes = "Ajker dharona: Digital twin ebong telemetry engine niye aro bhalo kaj korte hobe."
+        
+    user_note = st.text_area("Apnar moner kotha ba notes ekhane likhun:", value=st.session_state.notes)
+    if st.button("Save Note"):
+        st.session_state.notes = user_note
+        st.success("Note save kora hoyeche!")
